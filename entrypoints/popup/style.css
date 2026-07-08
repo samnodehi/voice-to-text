@@ -1,0 +1,131 @@
+@import '@/assets/vazirmatn.css';
+@import '@/assets/settings-form.css';
+
+:root {
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --surface-solid: #ffffff;
+  --text: #1a1d23;
+  --muted: #6b7280;
+  --border: rgba(120, 120, 140, 0.22);
+  --ring: rgba(0, 0, 0, 0.05);
+  --accent: #5b52e6;
+  --accent-2: #7c3aed;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #16171b;
+    --surface: #1f2127;
+    --surface-solid: #1f2127;
+    --text: #eceef1;
+    --muted: #9aa0ab;
+    --border: rgba(255, 255, 255, 0.12);
+    --ring: rgba(255, 255, 255, 0.06);
+  }
+}
+
+:root[data-theme='dark'] {
+  --bg: #16171b;
+  --surface: #1f2127;
+  --surface-solid: #1f2127;
+  --text: #eceef1;
+  --muted: #9aa0ab;
+  --border: rgba(255, 255, 255, 0.12);
+  --ring: rgba(255, 255, 255, 0.06);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Vazirmatn VTT', Tahoma, 'Segoe UI', Arial, sans-serif;
+}
+
+.pop {
+  width: 288px;
+  padding: 16px;
+}
+
+.pop__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.pop__logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: linear-gradient(160deg, var(--accent), var(--accent-2));
+  color: #fff;
+}
+
+.pop__head h1 {
+  font-size: 1.05rem;
+  margin: 0;
+}
+
+.pop__tagline {
+  margin: 0 0 4px;
+  font-size: 0.86rem;
+  line-height: 1.6;
+}
+
+.pop__shortcut {
+  margin: 0 0 12px;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.pop__site {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--ring);
+  margin-bottom: 12px;
+  cursor: pointer;
+}
+
+.pop__site-label {
+  font-size: 0.86rem;
+}
+
+.pop__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.pop__btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: inherit;
+  font-size: 0.82rem;
+  padding: 8px 6px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+
+.pop__btn:hover {
+  background: var(--ring);
+}

@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+  </head>
+  <body>
+    <!--
+      This page is never shown to the user (chrome.offscreen). It exists purely
+      to hold a DOM context, under the extension's own origin, that can run
+      getUserMedia / SpeechRecognition once microphone permission has been
+      granted once via the onboarding page. See docs/research-notes.md #1.
+    -->
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

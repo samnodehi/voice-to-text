@@ -1,0 +1,28 @@
+{
+  "name": "voice-to-text-extension",
+  "description": "Free voice dictation in any text field, on any website — 20+ languages, runs in your browser.",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "dev:firefox": "wxt -b firefox",
+    "build": "wxt build",
+    "build:firefox": "wxt build -b firefox",
+    "zip": "wxt zip",
+    "zip:firefox": "wxt zip -b firefox",
+    "compile": "tsc --noEmit",
+    "postinstall": "wxt prepare"
+  },
+  "devDependencies": {
+    "@types/dom-speech-recognition": "^0.0.12",
+    "sharp": "^0.35.3",
+    "tsx": "^4.23.0",
+    "typescript": "^5.9.3",
+    "wxt": "^0.20.27"
+  },
+  "dependencies": {
+    "@fontsource/vazirmatn": "^5.2.8",
+    "@persian-tools/persian-tools": "^4.0.4"
+  }
+}

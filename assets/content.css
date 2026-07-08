@@ -1,0 +1,261 @@
+@import './vazirmatn.css';
+
+:host {
+  --vtt-bg: rgba(255, 255, 255, 0.72);
+  --vtt-bg-solid: #ffffff;
+  --vtt-text: #1a1d23;
+  --vtt-muted: #6b7280;
+  --vtt-border: rgba(255, 255, 255, 0.6);
+  --vtt-ring: rgba(0, 0, 0, 0.08);
+  --vtt-accent: #4f46e5;
+  --vtt-accent-2: #7c3aed;
+  --vtt-recording: #dc2626;
+  --vtt-recording-2: #f43f5e;
+  --vtt-shadow: 0 8px 24px rgba(17, 24, 39, 0.18), 0 2px 6px rgba(17, 24, 39, 0.12);
+  color-scheme: light dark;
+}
+
+/* Dark palette, shared by auto (OS-dark) and the explicit "dark" theme override. */
+@media (prefers-color-scheme: dark) {
+  :host(:not([data-theme='light'])) {
+    --vtt-bg: rgba(31, 33, 39, 0.72);
+    --vtt-bg-solid: #1f2127;
+    --vtt-text: #eceef1;
+    --vtt-muted: #9aa0ab;
+    --vtt-border: rgba(255, 255, 255, 0.12);
+    --vtt-ring: rgba(255, 255, 255, 0.06);
+    --vtt-shadow: 0 8px 24px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.35);
+  }
+}
+
+/* Explicit theme override set via data-theme on the shadow host (wins over OS setting). */
+:host([data-theme='dark']) {
+  --vtt-bg: rgba(31, 33, 39, 0.72);
+  --vtt-bg-solid: #1f2127;
+  --vtt-text: #eceef1;
+  --vtt-muted: #9aa0ab;
+  --vtt-border: rgba(255, 255, 255, 0.12);
+  --vtt-ring: rgba(255, 255, 255, 0.06);
+  --vtt-shadow: 0 8px 24px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+/*
+ * Fixed + max z-index directly on our own root, rather than relying on WXT's "modal"
+ * position mode (whose host styling proved unreliable on complex sites like YouTube,
+ * leaving the host at position:static/z-index:auto so the page's own field rendered on
+ * top of our icon). This is the standard content-script-overlay approach: a fixed,
+ * top-of-stack layer we fully control. Coordinates are viewport-relative; scroll is
+ * tracked by re-running applyIconPosition, not by scroll offsets.
+ */
+.vtt-root {
+  position: fixed;
+  z-index: 2147483647;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  font-family: 'Vazirmatn VTT', Tahoma, 'Segoe UI', Arial, sans-serif;
+  direction: rtl;
+}
+
+/* ---------- Glassy microphone button ---------- */
+.vtt-icon {
+  pointer-events: auto;
+  position: relative;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--vtt-border);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.05)) border-box,
+    linear-gradient(160deg, var(--vtt-accent), var(--vtt-accent-2)) padding-box;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  -webkit-backdrop-filter: blur(6px) saturate(1.3);
+  backdrop-filter: blur(6px) saturate(1.3);
+  box-shadow: var(--vtt-shadow), inset 0 1px 1px rgba(255, 255, 255, 0.55);
+  transition: transform 0.14s ease, box-shadow 0.14s ease, filter 0.14s ease;
+  overflow: hidden;
+}
+
+/* Gloss highlight across the top — the "wet glass" sheen. */
+.vtt-icon::before {
+  content: '';
+  position: absolute;
+  inset: 1px 1px 45% 1px;
+  border-radius: 50% 50% 42% 42% / 60% 60% 40% 40%;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0));
+  pointer-events: none;
+}
+
+.vtt-icon > * {
+  position: relative;
+  z-index: 1;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.25));
+}
+
+.vtt-icon:hover {
+  transform: scale(1.08);
+  filter: brightness(1.05);
+}
+
+.vtt-icon:active {
+  transform: scale(0.96);
+}
+
+.vtt-icon.vtt-recording {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.05)) border-box,
+    linear-gradient(160deg, var(--vtt-recording), var(--vtt-recording-2)) padding-box;
+  animation: vtt-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes vtt-pulse {
+  0%, 100% {
+    box-shadow: var(--vtt-shadow), inset 0 1px 1px rgba(255, 255, 255, 0.5), 0 0 0 0 rgba(220, 38, 38, 0.5);
+  }
+  50% {
+    box-shadow: var(--vtt-shadow), inset 0 1px 1px rgba(255, 255, 255, 0.5), 0 0 0 7px rgba(220, 38, 38, 0);
+  }
+}
+
+/* ---------- Live popup ---------- */
+.vtt-popup {
+  pointer-events: auto;
+  position: absolute;
+  width: 300px;
+  max-width: 82vw;
+  background: var(--vtt-bg);
+  -webkit-backdrop-filter: blur(18px) saturate(1.5);
+  backdrop-filter: blur(18px) saturate(1.5);
+  color: var(--vtt-text);
+  border: 1px solid var(--vtt-border);
+  border-radius: 14px;
+  box-shadow: var(--vtt-shadow), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+  padding: 12px;
+  font-size: 13px;
+  line-height: 1.75;
+}
+
+.vtt-popup[hidden] {
+  display: none;
+}
+
+/* Popup opens toward the field, from the icon corner. */
+.vtt-popup.vtt-below {
+  top: calc(100% + 10px);
+  right: 0;
+}
+
+.vtt-popup.vtt-above {
+  bottom: calc(100% + 10px);
+  right: 0;
+}
+
+.vtt-popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.vtt-popup-status {
+  color: var(--vtt-muted);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.vtt-popup-status[data-kind='success'] {
+  color: #15803d;
+}
+
+.vtt-popup-status[data-kind='error'] {
+  color: var(--vtt-recording);
+}
+
+.vtt-popup-header-actions {
+  display: flex;
+  gap: 2px;
+}
+
+/* Shared glyph-button style: header (settings/close) and footer (copy/clear). */
+.vtt-icon-btn {
+  pointer-events: auto;
+  background: none;
+  border: none;
+  color: var(--vtt-muted);
+  cursor: pointer;
+  font-size: 15px;
+  padding: 4px 6px;
+  line-height: 1;
+  border-radius: 8px;
+  transition: background-color 0.12s ease, transform 0.1s ease;
+}
+
+.vtt-icon-btn:hover {
+  background: var(--vtt-ring);
+  transform: scale(1.1);
+}
+
+/* Live waveform: bars scroll right-to-left, newest level on the trailing edge. */
+.vtt-meter {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 26px;
+  margin-bottom: 8px;
+  padding: 0 2px;
+}
+
+.vtt-meter-bar {
+  flex: 1;
+  height: 8%;
+  min-height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(to top, var(--vtt-accent), var(--vtt-accent-2));
+  transition: height 0.09s linear;
+  align-self: center;
+}
+
+.vtt-transcript {
+  min-height: 3.4em;
+  max-height: 9em;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--vtt-ring);
+  border-radius: 9px;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+}
+
+.vtt-popup-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.vtt-actions-spacer {
+  flex: 1;
+}
+
+.vtt-lang-select {
+  pointer-events: auto;
+  font-family: inherit;
+  font-size: 12px;
+  max-width: 130px;
+  padding: 4px 6px;
+  border-radius: 8px;
+  border: 1px solid var(--vtt-border);
+  background: var(--vtt-bg-solid);
+  color: var(--vtt-text);
+  cursor: pointer;
+}
