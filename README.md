@@ -100,6 +100,20 @@ auto-saves:
 Microphone access itself is **not** a manifest permission — it's governed by the standard
 browser `getUserMedia` origin-permission model, granted once during onboarding.
 
+## Known limitations
+
+- **Google Docs** — the Docs editor draws text on a `<canvas>` rather than into a real
+  editable element, so the mic icon can't attach to it. Dictate into the popup and copy,
+  or use it in any normal field elsewhere.
+- **`chrome://` pages, the New Tab page, and the Chrome Web Store** — browsers forbid
+  extensions from running on these pages, so the mic icon won't appear there (including
+  Chrome's default new-tab search box).
+- **Closed shadow DOM** — fields inside a site's *closed* shadow root are invisible to any
+  extension and can't get an icon. Open shadow DOM (the common case — YouTube, Google
+  Translate, most web components) works fine.
+- **Recognition accuracy** depends on the browser's built-in speech engine, your
+  microphone, and background noise — it varies by language and accent.
+
 ## Tech stack
 
 - [WXT](https://wxt.dev) + TypeScript, Manifest V3
