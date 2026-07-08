@@ -87,8 +87,11 @@ Great for writing in Persian and other languages where typing is slower than spe
   > that leaves the machine is what **Chrome's own** Web Speech API sends to Google, exactly
   > as it would for any website using that API.
 
-- **Privacy policy URL:** host [`PRIVACY.md`](../PRIVACY.md) at a public URL (e.g. make the
-  GitHub repo public and link the raw file, or enable GitHub Pages) and paste that URL.
+- **Privacy policy URL** (repo is public — paste this):
+
+  ```
+  https://github.com/samnodehi/voice-to-text/blob/main/PRIVACY.md
+  ```
 
 ---
 
@@ -107,10 +110,11 @@ Great for writing in Persian and other languages where typing is slower than spe
 
 ## Submission checklist
 
-- [ ] Build the upload package: `npm run zip` → `.output/voice-to-text-extension-0.1.0-chrome.zip`.
+- [x] Build the upload package: `npm run zip` → `.output/voice-to-text-extension-0.1.0-chrome.zip`.
+- [x] Publish the privacy policy at a public URL — repo is public:
+      <https://github.com/samnodehi/voice-to-text/blob/main/PRIVACY.md>
 - [ ] Create/confirm a Chrome Web Store **developer account** (one-time US$5 fee). *(You must
       do this — I can't create accounts or pay fees.)*
-- [ ] Publish the privacy policy at a public URL and note it above.
 - [ ] Capture the screenshots listed above.
 - [ ] In the dashboard: create item → upload the zip → paste the listing text → paste the
       single purpose + permission justifications → complete the privacy tab → add screenshots.

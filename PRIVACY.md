@@ -64,8 +64,8 @@ be published in the project's repository.
 Questions about this policy can be raised via the project's GitHub repository issue tracker.
 
 <!--
-NOTE FOR SAM: Chrome Web Store also requires a contact email in your Developer Dashboard
-(separate from this file). If you'd like a public contact address in this policy itself,
-add it here before publishing. The repo is currently private — make it public (or host this
-policy somewhere public, e.g. GitHub Pages) so the Web Store can link to it.
+NOTE FOR SAM: The repo is public, so the Web Store can link this file directly:
+https://github.com/samnodehi/voice-to-text/blob/main/PRIVACY.md
+Chrome Web Store also requires a contact email in your Developer Dashboard (separate from
+this file). If you'd like a public contact address in this policy itself, add it above.
 -->
