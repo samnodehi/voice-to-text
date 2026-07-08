@@ -16,12 +16,20 @@
 
 ## باز — نیاز به پیگیری
 
-- **`npm audit` (در حال انجام — آماده‌سازی گیت‌هاب)**: بعد از نصب dependency ها آسیب‌پذیری‌هایی در زنجیره‌ی
-  devDependencies ابزار build گزارش شده بود (نه در بسته‌ی نهایی extension). حین آماده‌سازی گیت‌هاب باید بازبینی شود و در
-  README شفاف بیان شود که فقط زنجیره‌ی build را درگیر می‌کند.
+- **⏳ منتظر نتیجهٔ بازبینی Chrome Web Store** — آیتم در تاریخ ۸ ژوئیهٔ ۲۰۲۶ Submit شد؛ وضعیت **Pending Review**
+  (ممکن است چند روز کاری طول بکشد). Item ID در حافظهٔ محلی ثبت شده. کارِ در جریان همین است؛ منتظر ایمیل/تغییر وضعیت.
+- **اگر بازبین دربارهٔ `<all_urls>` سؤال کرد**: توجیهِ آماده در [docs/chrome-web-store-listing.md](docs/chrome-web-store-listing.md)
+  و متن Test instructions هست — با هم جواب را می‌فرستیم.
+- **گزینهٔ v0.1.1 (اختیاری)**: حذف `host_permissions: <all_urls>` با معماری Port — `content.ts` با
+  `chrome.runtime.connect()` کانکشن باز کند و `background.ts` نتایج را به‌جای `tabs.sendMessage` روی همان port
+  برگرداند؛ هندلر `commands` هم از همان port استفاده کند. سپس bump به `0.1.1`، `npm run zip`، آپلود آپدیت.
+  **هشدار واقع‌بینانه**: `content_scripts` روی `<all_urls>` ذاتی محصول است و می‌ماند، پس هشدار نصبِ «all websites»
+  و بازبینیِ «runs everywhere» کاملاً از بین نمی‌رود؛ فقط مجوز host_permissions و اصطکاک بازبینیِ آن کم می‌شود.
 
 ## حل‌شده‌ها (فقط برای یادآوریِ چراییِ تصمیم‌ها؛ اکشن ندارند)
 
+- **`npm audit`**: ۸ هشدار فقط در زنجیرهٔ devDependencies ابزار build (`wxt`→`web-ext-run`)؛ با `npm audit --omit=dev`
+  صفر آسیب‌پذیری در بستهٔ نهایی. در README شفاف بیان شد. عمداً `audit fix --force` زده نشد (build را می‌شکند).
 - **نسخه**: `0.0.0` → `0.1.0` انجام شد.
 - **i18n همه‌ی ۲۰ زبان کامل شد** (TS با `Dict = Record<MessageKey,string>` کامل‌بودن هر زبان را الزام می‌کند). زبان‌های
   کم‌مصرف‌تر best-effort‌اند و در README از اصلاحات جامعه استقبال می‌شود.

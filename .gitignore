@@ -27,3 +27,6 @@ web-ext.config.ts
 *.njsproj
 *.sln
 *.sw?
+
+# Store screenshots / marketing assets (not part of the extension)
+store-assets
