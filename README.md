@@ -94,10 +94,13 @@ auto-saves:
 | --- | --- |
 | `offscreen` | Runs the speech-recognition engine in an offscreen document (the only place an extension can hold a live microphone stream in Manifest V3). |
 | `storage` | Saves your settings locally. |
-| `<all_urls>` (host) | So the background service worker can deliver transcription results back into the content script on whatever tab you're typing in. (`runtime.sendMessage` can't reach content scripts; results must go through `tabs.sendMessage`, which needs host access.) |
+| `activeTab` | Lets the toolbar popup read the current tab's hostname for the per-site on/off switch. Granted only when you invoke the extension, and it adds no warning of its own. |
 
-Microphone access itself is **not** a manifest permission — it's governed by the standard
-browser `getUserMedia` origin-permission model, granted once during onboarding.
+The extension requests **no host permissions**. Its content script is declared for all sites
+(that is what "read and change all your data on websites you visit" refers to at install) —
+that is inherent to dictating into any field on any page, and it is the only broad access
+here. Microphone access is not a manifest permission either; it uses the standard
+`getUserMedia` origin-permission model, granted once during onboarding.
 
 ## Known limitations
 

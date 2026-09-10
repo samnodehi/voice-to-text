@@ -76,17 +76,21 @@ Great for writing in Persian and other languages where typing is slower than spe
   | --- | --- |
   | `offscreen` | Manifest V3 service workers cannot hold a live microphone stream. The extension uses an offscreen document to run `getUserMedia` and the Web Speech API for the duration of dictation. |
   | `storage` | Saves the user's own preferences (languages, theme, insertion mode, per-site on/off) locally with `chrome.storage.local`. No data leaves the device. |
-  | `host permissions (<all_urls>)` | The extension must show the mic control and insert dictated text on whatever page the user is typing on. Delivering results from the background service worker to the page requires `tabs.sendMessage`, which needs host access. No page content is read or transmitted. |
+  | `activeTab` | The toolbar popup reads the active tab's hostname so the user can switch dictation off for that site. Granted only on user invocation, which is when that popup opens. |
+  | Content scripts on `<all_urls>` | The extension's whole purpose is dictating into any text field on any site, so its content script must be declared for all sites. It requests **no host permissions**: no page content is read, and nothing is transmitted anywhere. |
   | Microphone (`getUserMedia`) | Required to capture the user's speech for transcription. Requested once during onboarding; the mic is active only while dictating. |
 
 - **Data usage disclosures:** The extension itself collects **no** user data — check "does
   not collect" for every category, and confirm the three required certifications (no
   selling data, no unrelated use, no creditworthiness use).
 
-  > ⚠️ Be ready for a reviewer question about the broad host permission and the microphone.
-  > Point them to the privacy policy: the extension transmits nothing itself; the only audio
-  > that leaves the machine is what **Chrome's own** Web Speech API sends to Google, exactly
-  > as it would for any website using that API.
+  > ⚠️ 0.1.0 was submitted with `host_permissions: ['<all_urls>']` and drew the "Broad Host
+  > Permissions" warning at submission. That permission has since been removed entirely — it
+  > turned out never to have been needed (see research-notes § 17) — so the flag should not
+  > reappear. The content script is still declared for all sites, which is inherent to the
+  > product; if a reviewer asks, point at the privacy policy: nothing is read from the page
+  > and nothing is transmitted. The only audio leaving the machine is what **Chrome's own**
+  > Web Speech API sends to Google, exactly as for any website using that API.
 
 - **Privacy policy URL** (repo is public — paste this):
 
@@ -111,16 +115,16 @@ Great for writing in Persian and other languages where typing is slower than spe
 
 ## Submission checklist
 
-- [x] Build the upload package: `npm run zip` → `.output/voice-to-text-extension-0.1.0-chrome.zip`.
-- [x] Publish the privacy policy at a public URL — repo is public:
-      <https://github.com/samnodehi/voice-to-text/blob/main/PRIVACY.md>
-- [ ] Create/confirm a Chrome Web Store **developer account** (one-time US$5 fee). *(You must
-      do this — I can't create accounts or pay fees.)*
-- [ ] Capture the screenshots listed above.
-- [ ] In the dashboard: create item → upload the zip → paste the listing text → paste the
-      single purpose + permission justifications → complete the privacy tab → add screenshots.
-- [ ] Submit for review.
+First release (0.1.0) is done: developer account created, screenshots captured, privacy
+policy published, item submitted and **published on 10 July 2026**.
 
-> Note: publishing to the Web Store and creating the developer account are actions only you
-> can take (account creation, payment, and submission). I've prepared everything up to the
-> upload; the zip and all copy are ready.
+For each update:
+
+- [x] `npm run zip` → `.output/voice-to-text-extension-<version>-chrome.zip`
+- [ ] Dashboard → the item → **Package** → *Upload new package* → **Submit for review**
+- [ ] If the permission set changed since the published version, refresh the justifications
+      above (0.1.2 drops `host_permissions` and adds `activeTab`).
+
+> Uploading and submitting are yours to do — I can prepare the package and the copy, but not
+> publish on your behalf. Note Chrome refuses a new package while a previous one is still
+> under review.
