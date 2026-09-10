@@ -53,6 +53,12 @@ export interface Settings {
   insertMode: InsertModeId;
   /** Turn spoken punctuation words ("period", "نقطه") into real punctuation. */
   punctuationCommands: boolean;
+  /**
+   * Ask the speech engine to punctuate from natural pauses (Chrome's `unspokenPunctuation`).
+   * Off by default: it is experimental, silently unsupported in some languages, and can
+   * double up with the spoken commands above.
+   */
+  autoPunctuation: boolean;
   /** Hostnames where the mic icon is suppressed (per-site off switch from the toolbar popup). */
   disabledSites: string[];
 }
@@ -63,6 +69,7 @@ export const DEFAULT_SETTINGS: Settings = {
   theme: 'auto',
   insertMode: 'field-only',
   punctuationCommands: true,
+  autoPunctuation: false,
   disabledSites: [],
 };
 

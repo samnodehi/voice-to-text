@@ -91,32 +91,44 @@ export async function mountSettingsForm(
   ]);
   insertSel.value = settings.insertMode;
 
-  // Punctuation toggle
-  const punctRow = document.createElement('label');
-  punctRow.className = 'switch-row';
-  const punctText = document.createElement('span');
-  const punctTitle = document.createElement('span');
-  punctTitle.className = 'switch-title';
-  punctTitle.dataset.i18n = 'set.punctLabel';
-  punctTitle.textContent = t.t('set.punctLabel');
-  const punctDesc = document.createElement('span');
-  punctDesc.className = 'switch-desc';
-  punctDesc.dataset.i18n = 'set.punctDesc';
-  punctDesc.textContent = t.t('set.punctDesc');
-  punctText.append(punctTitle, punctDesc);
-  const punctInput = document.createElement('input');
-  punctInput.type = 'checkbox';
-  punctInput.className = 'switch';
-  punctInput.id = 'set-punct';
-  punctInput.checked = settings.punctuationCommands;
-  punctRow.append(punctText, punctInput);
+  /** A titled/described on-off row. Returns the row plus its input so callers can wire it. */
+  const switchRow = (id: string, labelKey: string, descKey: string, checked: boolean) => {
+    const row = document.createElement('label');
+    row.className = 'switch-row';
+    const text = document.createElement('span');
+    const title = document.createElement('span');
+    title.className = 'switch-title';
+    title.dataset.i18n = labelKey;
+    title.textContent = t.t(labelKey as never);
+    const desc = document.createElement('span');
+    desc.className = 'switch-desc';
+    desc.dataset.i18n = descKey;
+    desc.textContent = t.t(descKey as never);
+    text.append(title, desc);
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.className = 'switch';
+    input.id = id;
+    input.checked = checked;
+    row.append(text, input);
+    return { row, input };
+  };
+
+  const punct = switchRow('set-punct', 'set.punctLabel', 'set.punctDesc', settings.punctuationCommands);
+  const autoPunct = switchRow(
+    'set-auto-punct',
+    'set.autoPunctLabel',
+    'set.autoPunctDesc',
+    settings.autoPunctuation,
+  );
 
   container.append(
     row('set.langLabel', langSel, 'set.langHint'),
     row('set.uiLangLabel', uiLangSel),
     row('set.themeLabel', themeSel),
     row('set.insertLabel', insertSel),
-    punctRow,
+    punct.row,
+    autoPunct.row,
   );
 
   const save = async (patch: Partial<Settings>) => {
@@ -127,7 +139,8 @@ export async function mountSettingsForm(
   langSel.addEventListener('change', () => save({ language: langSel.value }));
   themeSel.addEventListener('change', () => save({ theme: themeSel.value as Settings['theme'] }));
   insertSel.addEventListener('change', () => save({ insertMode: insertSel.value as Settings['insertMode'] }));
-  punctInput.addEventListener('change', () => save({ punctuationCommands: punctInput.checked }));
+  punct.input.addEventListener('change', () => save({ punctuationCommands: punct.input.checked }));
+  autoPunct.input.addEventListener('change', () => save({ autoPunctuation: autoPunct.input.checked }));
   uiLangSel.addEventListener('change', async () => {
     await save({ uiLanguage: uiLangSel.value });
     onUiLangChange();

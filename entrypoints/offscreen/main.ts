@@ -47,8 +47,12 @@ interface SessionStats {
   interims: number;
   restarts: number;
   errors: string[];
+  /** Whether Chrome's experimental auto-punctuation was actually applied this session. */
+  autoPunctuation: boolean;
 }
-let stats: SessionStats = { resultEvents: 0, finals: 0, interims: 0, restarts: 0, errors: [] };
+let stats: SessionStats = {
+  resultEvents: 0, finals: 0, interims: 0, restarts: 0, errors: [], autoPunctuation: false,
+};
 
 let recognition: SpeechRecognition | null = null;
 let audioStream: MediaStream | null = null;
@@ -244,7 +248,9 @@ async function startRecognitionInner(lang: string, source: RecognitionSource, co
   currentSource = source;
   lastErrorCode = null;
   restartTimestamps = [];
-  stats = { resultEvents: 0, finals: 0, interims: 0, restarts: 0, errors: [] };
+  stats = {
+    resultEvents: 0, finals: 0, interims: 0, restarts: 0, errors: [], autoPunctuation: false,
+  };
 
   // Text-processing prefs are passed in by background — offscreen documents can't read
   // chrome.storage themselves (only chrome.runtime is available here).
@@ -290,6 +296,14 @@ async function startRecognitionInner(lang: string, source: RecognitionSource, co
   instance.maxAlternatives = 1;
   if (await supportsOnDevice(Ctor, lang)) {
     instance.processLocally = true;
+  }
+  // Experimental and language-dependent, so feature-detect rather than assume: an unknown
+  // property assignment would be silently ignored and we would have no idea whether the
+  // user's setting did anything. The session summary records what actually applied.
+  const autoPunctuationSupported = 'unspokenPunctuation' in Ctor.prototype;
+  if (config.autoPunctuation && autoPunctuationSupported) {
+    instance.unspokenPunctuation = true;
+    stats.autoPunctuation = true;
   }
 
   if (myGeneration !== setupGeneration) {

@@ -50,6 +50,7 @@ export interface OpenOptionsRequest {
  */
 export interface OffscreenRunConfig {
   punctuationCommands: boolean;
+  autoPunctuation: boolean;
 }
 
 export interface StartRecognitionCommand {

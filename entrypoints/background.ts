@@ -130,6 +130,7 @@ async function relayToOffscreen(
       source,
       config: {
         punctuationCommands: settings.punctuationCommands,
+        autoPunctuation: settings.autoPunctuation,
       },
     };
   } else {
