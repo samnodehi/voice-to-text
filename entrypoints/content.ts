@@ -51,10 +51,21 @@ export default defineContentScript({
     let tr = createTranslator(settings.uiLanguage);
     const isDisabledHere = () => settings.disabledSites.includes(location.hostname);
     settingsStore.watch((next) => {
+      const previousLanguage = settings.language;
       if (next) settings = { ...settings, ...next };
       tr = createTranslator(settings.uiLanguage);
       applyTheme();
       relabelPopup();
+      // Keep the in-page switcher in step with a change made elsewhere (toolbar popup,
+      // Settings page, another tab) so the two never disagree about the current language.
+      if (langSelectEl) langSelectEl.value = settings.language;
+      // Changing the speech language from the toolbar mid-dictation should behave exactly
+      // like changing it from the in-page switcher: finish this session and come straight
+      // back in the new language.
+      if (settings.language !== previousLanguage && isListening) {
+        pendingRestart = true;
+        sendStop();
+      }
       // If this site was just disabled from the toolbar popup, tear the UI down live.
       if (isDisabledHere()) {
         if (isListening) sendStop();

@@ -3,6 +3,7 @@ import './style.css';
 const siteRow = document.getElementById('site-row') as HTMLLabelElement;
 const siteLabel = document.getElementById('site-label') as HTMLSpanElement;
 const siteToggle = document.getElementById('site-toggle') as HTMLInputElement;
+const langSelect = document.getElementById('lang-select') as HTMLSelectElement;
 const btnSettings = document.getElementById('btn-settings') as HTMLButtonElement;
 const btnMic = document.getElementById('btn-mic') as HTMLButtonElement;
 
@@ -43,6 +44,20 @@ async function init() {
   const t = createTranslator(settings.uiLanguage);
   applyDocTheme(settings.theme);
   relabelPage(t);
+
+  // The speech language lives here as well as in Settings: with 'field-only' as the default
+  // there is no in-page popup to switch it from, and switching language is a per-sentence
+  // need, not a per-month one.
+  for (const l of SUPPORTED_LANGUAGES) {
+    const opt = document.createElement('option');
+    opt.value = l.code;
+    opt.textContent = l.label;
+    langSelect.append(opt);
+  }
+  langSelect.value = settings.language;
+  langSelect.addEventListener('change', () => {
+    void patchSettings({ language: langSelect.value });
+  });
 
   const host = await activeHostname();
   if (host) {

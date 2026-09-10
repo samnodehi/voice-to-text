@@ -87,6 +87,29 @@ body {
   color: var(--muted);
 }
 
+.pop__lang {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 10px;
+}
+
+.pop__lang-label {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.pop__lang-select {
+  font-family: inherit;
+  font-size: 0.86rem;
+  padding: 7px 9px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
 .pop__site {
   display: flex;
   align-items: center;
