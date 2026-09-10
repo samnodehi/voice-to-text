@@ -55,7 +55,10 @@ export function createRecognitionAccumulator(
         const result = results[i];
         const raw = result[0].transcript;
         if (result.isFinal) {
-          finalText += normalizeFinal(raw) + ' ';
+          // Chrome emits blank finals during long sessions. Appending ' ' for each one typed
+          // a lone space into the user's field per sentence — reported in the wild.
+          const clean = normalizeFinal(raw);
+          if (clean.trim()) finalText += clean + ' ';
           finalizedCount = i + 1;
         } else {
           interimText += raw;
