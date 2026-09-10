@@ -115,6 +115,15 @@ function createInputWriter(field: HTMLInputElement | HTMLTextAreaElement): Field
   let anchor: number | null = null;
   let tail = '';
   let caretAfterWrite = -1;
+  /**
+   * Some editors rewrite the field's content on every `input` — Google Translate inserts its
+   * own transliteration, ProseMirror-style editors normalise. Our tail is then no longer
+   * there to replace, so the next interim gets appended instead, and the text runs away
+   * ("ab" → "abab" → "ababc"…). Verified reproducible. When that is detected we stop writing
+   * interim into this field and fall back to committing finals only, which such editors
+   * handle fine.
+   */
+  let liveInterim = true;
 
   /**
    * Whether the tail we last wrote is still ours to replace.
@@ -140,7 +149,8 @@ function createInputWriter(field: HTMLInputElement | HTMLTextAreaElement): Field
       tail = '';
     }
     const start = anchor as number;
-    const next = field.value.slice(0, start) + text + field.value.slice(start + tail.length);
+    const before = field.value;
+    const next = before.slice(0, start) + text + before.slice(start + tail.length);
     setNativeValue(field, next);
     const caret = start + text.length;
     if (caretAware) {
@@ -151,6 +161,19 @@ function createInputWriter(field: HTMLInputElement | HTMLTextAreaElement): Field
       }
     }
     field.dispatchEvent(new Event('input', { bubbles: true }));
+
+    // Did the page keep what we just wrote? Checked for interim only: a commit that the host
+    // transforms is still the user's text, but an interim we cannot replace next time is the
+    // start of runaway duplication.
+    if (!commit && field.value.substr(start, text.length) !== text) {
+      liveInterim = false;
+      setNativeValue(field, before); // take our now-unmanageable fragment back out
+      field.dispatchEvent(new Event('input', { bubbles: true }));
+      anchor = null;
+      tail = '';
+      caretAfterWrite = -1;
+      return;
+    }
     // Record where the caret actually ended up: a controlled component may reposition it in
     // its input handler, and believing our intended value would make us disown the tail.
     caretAfterWrite = caretAware ? (field.selectionStart ?? caret) : caret;
@@ -166,6 +189,7 @@ function createInputWriter(field: HTMLInputElement | HTMLTextAreaElement): Field
     // Skip no-op rewrites: every write re-fires `input` on the host page, and during
     // dictation that would run the site's own handlers dozens of times per second.
     setInterim: (text) => {
+      if (!liveInterim) return;
       const next = sanitize(text);
       if (next !== tail || !owned()) write(next, false);
     },
@@ -174,6 +198,7 @@ function createInputWriter(field: HTMLInputElement | HTMLTextAreaElement): Field
       anchor = null;
       tail = '';
       caretAfterWrite = -1;
+      liveInterim = true;
     },
   };
 }

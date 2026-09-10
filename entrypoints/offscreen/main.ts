@@ -47,11 +47,16 @@ interface SessionStats {
   interims: number;
   restarts: number;
   errors: string[];
-  /** Whether Chrome's experimental auto-punctuation was actually applied this session. */
-  autoPunctuation: boolean;
+  /**
+   * What happened to the experimental auto-punctuation setting: 'off' (user has it disabled),
+   * 'unsupported' (asked for, but this browser has no such property) or 'on' (actually
+   * applied). Reported so a test can tell "you didn't switch it on" apart from "Chrome
+   * ignored it", which the previous plain boolean could not.
+   */
+  autoPunctuation: 'off' | 'unsupported' | 'on';
 }
 let stats: SessionStats = {
-  resultEvents: 0, finals: 0, interims: 0, restarts: 0, errors: [], autoPunctuation: false,
+  resultEvents: 0, finals: 0, interims: 0, restarts: 0, errors: [], autoPunctuation: 'off',
 };
 
 let recognition: SpeechRecognition | null = null;
@@ -249,7 +254,7 @@ async function startRecognitionInner(lang: string, source: RecognitionSource, co
   lastErrorCode = null;
   restartTimestamps = [];
   stats = {
-    resultEvents: 0, finals: 0, interims: 0, restarts: 0, errors: [], autoPunctuation: false,
+    resultEvents: 0, finals: 0, interims: 0, restarts: 0, errors: [], autoPunctuation: 'off',
   };
 
   // Text-processing prefs are passed in by background — offscreen documents can't read
@@ -301,9 +306,9 @@ async function startRecognitionInner(lang: string, source: RecognitionSource, co
   // property assignment would be silently ignored and we would have no idea whether the
   // user's setting did anything. The session summary records what actually applied.
   const autoPunctuationSupported = 'unspokenPunctuation' in Ctor.prototype;
-  if (config.autoPunctuation && autoPunctuationSupported) {
-    instance.unspokenPunctuation = true;
-    stats.autoPunctuation = true;
+  if (config.autoPunctuation) {
+    stats.autoPunctuation = autoPunctuationSupported ? 'on' : 'unsupported';
+    if (autoPunctuationSupported) instance.unspokenPunctuation = true;
   }
 
   if (myGeneration !== setupGeneration) {
