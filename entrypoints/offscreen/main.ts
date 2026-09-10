@@ -320,7 +320,11 @@ async function startRecognitionInner(lang: string, source: RecognitionSource, co
   instance.onerror = (event: SpeechRecognitionErrorEvent) => {
     lastErrorCode = (event.error as RecognitionErrorCode) || 'unknown';
     stats.errors.push(lastErrorCode);
-    console.error('[voice-to-text/offscreen] recognition error:', lastErrorCode, event.message);
+    // 'no-speech' fires on every natural pause and 'aborted' on a normal stop; logging those
+    // as errors buries the real ones in noise. They still show up in the session summary.
+    if (lastErrorCode !== 'no-speech' && lastErrorCode !== 'aborted') {
+      console.error('[voice-to-text/offscreen] recognition error:', lastErrorCode, event.message);
+    }
     emit({ target: 'client', type: 'recognition:error', source, error: lastErrorCode, message: event.message || undefined });
   };
 
