@@ -40,6 +40,17 @@ const FATAL_ERRORS: ReadonlySet<RecognitionErrorCode> = new Set([
 const MAX_RESTARTS_IN_WINDOW = 5;
 const RESTART_WINDOW_MS = 10_000;
 
+/**
+ * Chrome can hold one `continuous` segment open for a very long time, and text that is
+ * still un-finalized inside it can be revised away — whole sentences went missing that way.
+ * Shorter segments lose less. We force a segment boundary once one has run this long, but
+ * ONLY while the microphone is actually quiet: stopping mid-word would clip audio during the
+ * restart gap, which would be trading an occasional loss for a guaranteed one.
+ */
+const SEGMENT_SOFT_MAX_MS = 8_000;
+const SILENCE_LEVEL = 0.045;
+const SILENCE_HOLD_MS = 700;
+
 /** Counters for one dictation, logged when it ends — enough to diagnose a session after the fact. */
 interface SessionStats {
   resultEvents: number;
@@ -54,9 +65,18 @@ interface SessionStats {
    * ignored it", which the previous plain boolean could not.
    */
   autoPunctuation: 'off' | 'unsupported' | 'on';
+  /** Segment boundaries we forced during a silence, to keep segments short. */
+  forcedSegments: number;
+  /**
+   * Rough measure of engine loss: for each segment, how many characters the interim had
+   * shown at its peak beyond what the eventual final contained. Large values mean Chrome
+   * revised text away before finalising it — that loss happens upstream of us.
+   */
+  droppedChars: number;
 }
 let stats: SessionStats = {
-  resultEvents: 0, finals: 0, interims: 0, restarts: 0, errors: [], autoPunctuation: 'off',
+  resultEvents: 0, finals: 0, interims: 0, restarts: 0, errors: [],
+  autoPunctuation: 'off', forcedSegments: 0, droppedChars: 0,
 };
 
 let recognition: SpeechRecognition | null = null;
@@ -71,7 +91,7 @@ let restartTimestamps: number[] = [];
 let levelContext: AudioContext | null = null;
 let levelTimer: ReturnType<typeof setInterval> | undefined;
 
-function startLevelMeter(stream: MediaStream, source: RecognitionSource) {
+function startLevelMeter(stream: MediaStream, source: RecognitionSource, onLevel?: (level: number) => void) {
   stopLevelMeter();
   try {
     const ctx = new AudioContext();
@@ -89,6 +109,7 @@ function startLevelMeter(stream: MediaStream, source: RecognitionSource) {
       const level = Math.min(1, Math.sqrt(sum / buf.length) * 4); // scale RMS into a lively 0–1
       smoothed = smoothed * 0.6 + level * 0.4; // ease so the meter doesn't jitter
       emit({ target: 'client', type: 'recognition:level', source, level: smoothed });
+      onLevel?.(smoothed);
     }, 90);
   } catch {
     // Metering is a nicety; never let it break recognition.
@@ -254,7 +275,8 @@ async function startRecognitionInner(lang: string, source: RecognitionSource, co
   lastErrorCode = null;
   restartTimestamps = [];
   stats = {
-    resultEvents: 0, finals: 0, interims: 0, restarts: 0, errors: [], autoPunctuation: 'off',
+    resultEvents: 0, finals: 0, interims: 0, restarts: 0, errors: [],
+    autoPunctuation: 'off', forcedSegments: 0, droppedChars: 0,
   };
 
   // Text-processing prefs are passed in by background — offscreen documents can't read
@@ -292,7 +314,11 @@ async function startRecognitionInner(lang: string, source: RecognitionSource, co
   }
   audioStream = stream;
   const track = stream.getAudioTracks()[0];
-  startLevelMeter(stream, source);
+
+  /** When the currently open (un-finalized) segment began, and how long it ever got. */
+  let segmentStartedAt: number | null = null;
+  let peakInterimLen = 0;
+  let silenceSince: number | null = null;
 
   const instance = new Ctor();
   instance.lang = lang;
@@ -331,6 +357,16 @@ async function startRecognitionInner(lang: string, source: RecognitionSource, co
     stats.resultEvents++;
     if (finalText) stats.finals++;
     if (interimText) stats.interims++;
+    if (finalText) {
+      // How much the interim had shown that the final did not keep — engine-side loss.
+      stats.droppedChars += Math.max(0, peakInterimLen - finalText.length);
+      peakInterimLen = 0;
+      segmentStartedAt = null;
+    }
+    if (interimText) {
+      if (segmentStartedAt === null) segmentStartedAt = Date.now();
+      if (interimText.length > peakInterimLen) peakInterimLen = interimText.length;
+    }
     // Always emit: the event only fires when something changed, and an interim that shrank
     // back to '' still has to reach the client so it can clear the stale tail.
     emit({ target: 'client', type: 'recognition:result', source, finalText, interimText });
@@ -383,6 +419,9 @@ async function startRecognitionInner(lang: string, source: RecognitionSource, co
         // The new session reports results from index 0 again, so reset our own counter.
         stats.restarts++;
         accumulator.resetSessionIndex();
+        segmentStartedAt = null;
+        peakInterimLen = 0;
+        silenceSince = null;
         try {
           instance.start(track);
         } catch {
@@ -408,6 +447,31 @@ async function startRecognitionInner(lang: string, source: RecognitionSource, co
     emit({ target: 'client', type: 'recognition:ended', source, reason: pendingStopReason });
     pendingStopReason = undefined;
   };
+
+  startLevelMeter(stream, source, (level) => {
+    const now = Date.now();
+    if (level < SILENCE_LEVEL) silenceSince ??= now;
+    else silenceSince = null;
+    const segmentOpen = segmentStartedAt !== null && accumulator.pendingLength() > 0;
+    if (
+      shouldBeListening &&
+      segmentOpen &&
+      now - (segmentStartedAt as number) > SEGMENT_SOFT_MAX_MS &&
+      silenceSince !== null &&
+      now - silenceSince > SILENCE_HOLD_MS
+    ) {
+      // Quiet, and this segment has been open too long: close it here so the engine commits
+      // what it has instead of holding (and possibly revising away) more and more text.
+      silenceSince = null;
+      segmentStartedAt = null;
+      stats.forcedSegments++;
+      try {
+        instance.stop();
+      } catch {
+        // Already stopping; onend will take it from here.
+      }
+    }
+  });
 
   recognition = instance;
   try {

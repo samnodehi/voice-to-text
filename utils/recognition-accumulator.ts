@@ -39,6 +39,8 @@ export interface RecognitionAccumulator {
   takePendingFinal(): string;
   /** A restarted session numbers its results from zero again. */
   resetSessionIndex(): void;
+  /** Characters currently held un-finalized. 0 means the engine has nothing in flight. */
+  pendingLength(): number;
 }
 
 export function createRecognitionAccumulator(
@@ -76,6 +78,10 @@ export function createRecognitionAccumulator(
 
     resetSessionIndex() {
       finalizedCount = 0;
+    },
+
+    pendingLength() {
+      return pendingInterim.length;
     },
   };
 }
