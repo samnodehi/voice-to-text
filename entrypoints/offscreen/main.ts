@@ -32,9 +32,23 @@ const FATAL_ERRORS: ReadonlySet<RecognitionErrorCode> = new Set([
   'language-not-supported',
 ]);
 
-/** Guards against a tight restart loop if the browser keeps ending the session immediately. */
+/**
+ * Guards against a tight restart loop if the browser keeps ending the session immediately.
+ * The budget is only meant to catch an *unproductive* loop, so `onresult` clears it — a long
+ * dictation with many natural pauses restarts often and must never be shut down for it.
+ */
 const MAX_RESTARTS_IN_WINDOW = 5;
 const RESTART_WINDOW_MS = 10_000;
+
+/** Counters for one dictation, logged when it ends — enough to diagnose a session after the fact. */
+interface SessionStats {
+  resultEvents: number;
+  finals: number;
+  interims: number;
+  restarts: number;
+  errors: string[];
+}
+let stats: SessionStats = { resultEvents: 0, finals: 0, interims: 0, restarts: 0, errors: [] };
 
 let recognition: SpeechRecognition | null = null;
 let audioStream: MediaStream | null = null;
@@ -152,8 +166,10 @@ function emit(
     | RecognitionErrorMessage
     | RecognitionEndedMessage,
 ) {
-  browser.runtime.sendMessage(message).catch(() => {
-    // No client tab/page currently listening (e.g. it was closed mid-session); safe to ignore.
+  browser.runtime.sendMessage(message).catch((error) => {
+    // Usually benign (the client tab closed mid-session), but a failure here means a
+    // recognition result was silently dropped — never swallow it without a trace.
+    console.warn('[voice-to-text/offscreen] failed to deliver', message.type, error);
   });
 }
 
@@ -228,6 +244,7 @@ async function startRecognitionInner(lang: string, source: RecognitionSource, co
   currentSource = source;
   lastErrorCode = null;
   restartTimestamps = [];
+  stats = { resultEvents: 0, finals: 0, interims: 0, restarts: 0, errors: [] };
 
   // Text-processing prefs are passed in by background — offscreen documents can't read
   // chrome.storage themselves (only chrome.runtime is available here).
@@ -287,7 +304,14 @@ async function startRecognitionInner(lang: string, source: RecognitionSource, co
 
   instance.onresult = (event: SpeechRecognitionEvent) => {
     lastErrorCode = null;
+    // A result means this session is productive. Clearing the restart budget here is the
+    // difference between "guard against a broken loop" and "shut the user up mid-dictation
+    // because they paused six times" — the latter is what actually happened.
+    restartTimestamps = [];
     const { finalText, interimText } = accumulator.consume(event.results);
+    stats.resultEvents++;
+    if (finalText) stats.finals++;
+    if (interimText) stats.interims++;
     // Always emit: the event only fires when something changed, and an interim that shrank
     // back to '' still has to reach the client so it can clear the stale tail.
     emit({ target: 'client', type: 'recognition:result', source, finalText, interimText });
@@ -295,6 +319,7 @@ async function startRecognitionInner(lang: string, source: RecognitionSource, co
 
   instance.onerror = (event: SpeechRecognitionErrorEvent) => {
     lastErrorCode = (event.error as RecognitionErrorCode) || 'unknown';
+    stats.errors.push(lastErrorCode);
     console.error('[voice-to-text/offscreen] recognition error:', lastErrorCode, event.message);
     emit({ target: 'client', type: 'recognition:error', source, error: lastErrorCode, message: event.message || undefined });
   };
@@ -317,31 +342,46 @@ async function startRecognitionInner(lang: string, source: RecognitionSource, co
     const trackStillLive = track.readyState === 'live';
     flushPendingInterim();
 
-    if (shouldBeListening && !isFatal && trackStillLive && !tooManyRestarts()) {
-      // Chrome auto-stops `continuous` recognition after periods of silence; restart
-      // transparently, reusing the same track, so dictation feels uninterrupted.
-      // The new session reports results from index 0 again, so reset our own counter.
-      accumulator.resetSessionIndex();
-      try {
-        instance.start(track);
-      } catch {
-        setTimeout(() => {
-          if (shouldBeListening) {
-            try {
-              instance.start(track);
-            } catch {
-              /* give up silently; the next user click will retry from scratch */
+    if (shouldBeListening && !isFatal && trackStillLive) {
+      if (tooManyRestarts()) {
+        // Genuinely stuck (restarting with nothing to show for it). Ending quietly here is
+        // what made dictation "just stop writing" with no explanation, so say so.
+        console.warn('[voice-to-text/offscreen] restart loop detected; stopping', stats);
+        emit({
+          target: 'client',
+          type: 'recognition:error',
+          source,
+          error: 'unknown',
+          message: 'Recognition kept restarting without producing results; stopped.',
+        });
+      } else {
+        // Chrome auto-stops `continuous` recognition after periods of silence; restart
+        // transparently, reusing the same track, so dictation feels uninterrupted.
+        // The new session reports results from index 0 again, so reset our own counter.
+        stats.restarts++;
+        accumulator.resetSessionIndex();
+        try {
+          instance.start(track);
+        } catch {
+          setTimeout(() => {
+            if (shouldBeListening) {
+              try {
+                instance.start(track);
+              } catch {
+                /* give up silently; the next user click will retry from scratch */
+              }
             }
-          }
-        }, 250);
+          }, 250);
+        }
+        return;
       }
-      return;
     }
 
     shouldBeListening = false;
     recognition = null;
     currentSource = null;
     stopAudioStream();
+    console.info('[voice-to-text/offscreen] session ended', { reason: pendingStopReason ?? 'engine', ...stats });
     emit({ target: 'client', type: 'recognition:ended', source, reason: pendingStopReason });
     pendingStopReason = undefined;
   };

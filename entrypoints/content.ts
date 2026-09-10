@@ -562,12 +562,17 @@ export default defineContentScript({
           if (message.finalText) fieldWriter?.commit(message.finalText);
           fieldWriter?.setInterim(message.interimText);
           break;
-        case 'recognition:error':
-          setStatus(tr.t(ERROR_KEYS[message.error] ?? 'status.genericError'), 'error');
-          // A failure the user can't see is a failure they can't fix — force the popup open
+        case 'recognition:error': {
+          // 'no-speech' fires on every natural pause and 'aborted' on a normal stop — they
+          // are status, not failure. Treating them as errors made the popup burst open on
+          // every pause in field-only mode and then refuse to auto-hide.
+          const transient = message.error === 'no-speech' || message.error === 'aborted';
+          setStatus(tr.t(ERROR_KEYS[message.error] ?? 'status.genericError'), transient ? 'idle' : 'error');
+          // A real failure the user can't see is one they can't fix — force the popup open
           // even in 'field-only', where it is otherwise deliberately kept out of the way.
-          showPopup();
+          if (!transient) showPopup();
           break;
+        }
         case 'recognition:ended':
           isListening = false;
           updateIconVisualState();
