@@ -55,7 +55,10 @@ export function createRecognitionAccumulator(
       let interimText = '';
       for (let i = finalizedCount; i < results.length; i++) {
         const result = results[i];
-        const raw = result[0].transcript;
+        if (result === undefined) continue;
+        // A final with no readable alternative must still advance the counter, or we would
+        // re-walk it on every event forever. Missing text is treated as empty, not skipped.
+        const raw = result[0]?.transcript ?? '';
         if (result.isFinal) {
           // Chrome emits blank finals during long sessions. Appending ' ' for each one typed
           // a lone space into the user's field per sentence — reported in the wild.

@@ -321,7 +321,7 @@ function buildRules(base: string): CompiledRule[] {
 
 const RULE_CACHE = new Map<string, CompiledRule[]>();
 function rulesForLang(lang: string): CompiledRule[] {
-  const base = lang.toLowerCase().split('-')[0];
+  const base = lang.toLowerCase().split('-')[0] ?? '';
   let cached = RULE_CACHE.get(base);
   if (!cached) {
     cached = buildRules(base);
@@ -371,7 +371,8 @@ export function applyPunctuationCommands(text: string, lang: string): string {
       continue;
     }
 
-    appendWord(tokens[i]);
+    const word = tokens[i];
+    if (word !== undefined) appendWord(word);
     i += 1;
   }
 

@@ -46,7 +46,7 @@ English and 18 other languages.
 
 ## Install from source
 
-Requires [Node.js](https://nodejs.org) 18+.
+Requires [Node.js](https://nodejs.org) 22+ (WXT 0.21 requires it).
 
 ```bash
 npm install
@@ -140,10 +140,8 @@ npm run zip        # package for distribution
 
 ### A note on `npm audit`
 
-`npm audit` reports advisories in the **development** toolchain (`wxt` →
-`web-ext-run` → `fx-runner`/`node-notifier`/`tmp`/`uuid`). These are build/dev-time only.
-`npm audit --omit=dev` reports **0 vulnerabilities** — nothing in the shipped extension is
-affected. Do not run `npm audit fix --force`; it would downgrade/break the WXT build.
+`npm audit` reports **0 vulnerabilities**. (It used to report eight, all in the
+`wxt` → `web-ext-run` dev-tooling chain; upgrading to WXT 0.21 removed that chain entirely.)
 
 ## Contributing
 

@@ -105,7 +105,7 @@ function startLevelMeter(stream: MediaStream, source: RecognitionSource, onLevel
     levelTimer = setInterval(() => {
       analyser.getFloatTimeDomainData(buf);
       let sum = 0;
-      for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
+      for (const sample of buf) sum += sample * sample;
       const level = Math.min(1, Math.sqrt(sum / buf.length) * 4); // scale RMS into a lively 0–1
       smoothed = smoothed * 0.6 + level * 0.4; // ease so the meter doesn't jitter
       emit({ target: 'client', type: 'recognition:level', source, level: smoothed });
@@ -314,6 +314,22 @@ async function startRecognitionInner(lang: string, source: RecognitionSource, co
   }
   audioStream = stream;
   const track = stream.getAudioTracks()[0];
+  if (!track) {
+    // getUserMedia resolved without an audio track (device yanked mid-negotiation). Every
+    // start must still resolve in exactly one 'ended', so report and bail cleanly.
+    stopAudioStream();
+    shouldBeListening = false;
+    currentSource = null;
+    emit({
+      target: 'client',
+      type: 'recognition:error',
+      source,
+      error: 'audio-capture',
+      message: 'The microphone stream had no audio track.',
+    });
+    emit({ target: 'client', type: 'recognition:ended', source });
+    return;
+  }
 
   /** When the currently open (un-finalized) segment began, and how long it ever got. */
   let segmentStartedAt: number | null = null;
