@@ -598,17 +598,18 @@ export default defineContentScript({
           // The engine flushes its un-finalized tail as a final before ending, so whatever
           // is still marked interim here has already been superseded; drop the tracking.
           interimTranscript = '';
-          // This lands in the *page's* console, so it only speaks up when something actually
-          // went sideways — a tail we kept losing, or live interim switching itself off in a
-          // field that should have supported it. A normal session stays silent.
+          // Diagnostic only, and deliberately console.debug: warn/error from a content script
+          // is collected into the extension's Errors page, where a normal-but-noteworthy
+          // session (YouTube's search box re-anchors as its autocomplete rewrites the field)
+          // looked like a fault to anyone — user or store reviewer — who opened that page.
+          // Serialised rather than passed as an object, because that page renders objects as
+          // "[object Object]", which is worse than not logging at all.
           if (fieldWriter) {
-            const writerStats = fieldWriter.stats();
-            const unexpected =
-              writerStats.reanchors > 0 ||
-              (writerStats.kind !== 'contenteditable' && !writerStats.liveInterim);
-            if (unexpected) {
-              console.warn('[voice-to-text] field writer', { host: location.hostname, ...writerStats });
-            }
+            const w = fieldWriter.stats();
+            console.debug(
+              `[voice-to-text] ${location.hostname} ${w.kind} interim=${w.interimWrites}/${w.interimCalls} ` +
+                `commits=${w.commits} reanchors=${w.reanchors} live=${w.liveInterim}`,
+            );
           }
           fieldWriter?.reset();
           fieldWriter = null;
