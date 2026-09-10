@@ -75,7 +75,7 @@ auto-saves:
 | **Speech language** | The language you speak. Drives recognition, digits, and punctuation. |
 | **Extension language** | The language of the UI itself (independent of speech). |
 | **Theme** | Auto (match system), light, or dark. |
-| **Text insertion** | Type into the field + live popup, type into the field only (no popup), or popup-only. |
+| **Text insertion** | Type into the field only, no popup (default) · type into the field + live popup · popup-only. |
 | **Spoken punctuation** | Turn "period"/"نقطه"/… into real punctuation. |
 | **Per-site** | Disable the mic icon on the current site (toolbar popup). |
 

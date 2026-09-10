@@ -9,12 +9,13 @@
 
 export type ThemeId = 'auto' | 'light' | 'dark';
 /**
- * Where dictated text goes.
- * - 'direct-and-popup': typed into the field, with the live popup alongside.
+ * Where dictated text goes. Listed in the order they appear in the UI; 'field-only' is the
+ * default — dictation belongs in the field, and the popup is opt-in rather than in the way.
  * - 'field-only':       typed into the field, no popup (the popup still appears for errors).
+ * - 'direct-and-popup': typed into the field, with the live popup alongside.
  * - 'popup-only':       nothing is typed; the user copies from the popup.
  */
-export type InsertModeId = 'direct-and-popup' | 'field-only' | 'popup-only';
+export type InsertModeId = 'field-only' | 'direct-and-popup' | 'popup-only';
 
 /**
  * Recognition languages offered in the UI. English first (default). These are common
@@ -60,7 +61,7 @@ export const DEFAULT_SETTINGS: Settings = {
   language: 'en-US',
   uiLanguage: 'auto',
   theme: 'auto',
-  insertMode: 'direct-and-popup',
+  insertMode: 'field-only',
   punctuationCommands: true,
   disabledSites: [],
 };
