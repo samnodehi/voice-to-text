@@ -7,8 +7,7 @@ small popup and typed straight into the field. 20+ languages, no account, no API
 Built for high-quality **Persian (فارسی)** dictation, with first-class support for
 English and 18 other languages.
 
-> Status: `v0.1.0` — works end to end. Not yet on the Chrome Web Store; install from
-> source (below).
+> **[Install from the Chrome Web Store](https://chromewebstore.google.com/detail/aajdooennnkpdbkhfiandgpoaonidlom)** — or build it from source (below).
 
 ---
 
@@ -18,8 +17,8 @@ English and 18 other languages.
   field (`input`, `textarea`, or `contenteditable`). No per-site setup.
 - **Live transcription** — see interim results as you speak in an attached popup, with a
   real-time audio-level meter so you know the mic is hearing you.
-- **Types into the field _and_ shows the popup** — or switch to popup-only mode and copy
-  manually. Your choice.
+- **Types straight into the field** — by default with no popup in the way. Prefer a live
+  popup alongside, or popup-only so you copy manually? Both are one setting away.
 - **20+ languages** — English, Persian, Arabic, Turkish, German, French, Spanish, Italian,
   Russian, Portuguese, Hindi, Japanese, Korean, Chinese, Dutch, Polish, Indonesian,
   Swedish, Ukrainian, and more.
