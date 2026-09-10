@@ -12,35 +12,70 @@ function setNativeValue(el: HTMLInputElement | HTMLTextAreaElement, value: strin
   nativeSetter?.call(el, value);
 }
 
-function insertIntoContentEditable(field: HTMLElement, text: string) {
-  field.focus();
-  const selection = window.getSelection();
-  if (!selection) return;
-
-  if (selection.rangeCount === 0 || !field.contains(selection.getRangeAt(0).commonAncestorContainer)) {
-    // No existing cursor inside this field (e.g. very first insert) — place one at the end.
+/**
+ * Puts the caret at the end of `field`. Returns false when the editor is no longer in the
+ * document: a React-driven editor can replace its nodes between our reading the DOM and our
+ * writing to it, and addRange() throws "The given range isn't in document" for a range whose
+ * boundaries have been detached. Seen in the wild on chatgpt.com.
+ */
+function collapseCaretToEnd(field: HTMLElement, selection: Selection): boolean {
+  if (!field.isConnected) return false;
+  try {
     const range = document.createRange();
     range.selectNodeContents(field);
     range.collapse(false);
     selection.removeAllRanges();
     selection.addRange(range);
+    return true;
+  } catch {
+    return false;
   }
+}
+
+function insertIntoContentEditable(field: HTMLElement, text: string) {
+  if (!field.isConnected) return;
+  field.focus();
+  const selection = window.getSelection();
+  if (!selection) return;
+
+  let caretInField = false;
+  try {
+    caretInField =
+      selection.rangeCount > 0 && field.contains(selection.getRangeAt(0).commonAncestorContainer);
+  } catch {
+    caretInField = false;
+  }
+  if (!caretInField && !collapseCaretToEnd(field, selection)) return;
 
   // Deprecated but still the most broadly-compatible way to *synthetically* insert text into
   // contenteditable so that rich editors (which listen for real input/beforeinput events, not
   // direct DOM mutation) notice it and undo history stays intact. Chrome has no removal plans.
-  const handled = document.execCommand('insertText', false, text);
-  if (handled) return;
+  try {
+    if (document.execCommand('insertText', false, text)) return;
+  } catch {
+    // Fall through to the manual path below.
+  }
 
-  const range = selection.getRangeAt(0);
-  range.deleteContents();
-  const node = document.createTextNode(text);
-  range.insertNode(node);
-  range.setStartAfter(node);
-  range.setEndAfter(node);
-  selection.removeAllRanges();
-  selection.addRange(range);
-  field.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
+  // Manual fallback. Every step can fail if the editor re-renders underneath us, so the whole
+  // block is guarded: losing one insertion is acceptable, throwing out of the message handler
+  // and taking the dictation session down with it is not.
+  try {
+    if (selection.rangeCount === 0) return;
+    const range = selection.getRangeAt(0);
+    range.deleteContents();
+    const node = document.createTextNode(text);
+    range.insertNode(node);
+    // The editor may drop that node again immediately; only re-select it if it survived.
+    if (node.isConnected) {
+      range.setStartAfter(node);
+      range.setEndAfter(node);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+    field.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
+  } catch (error) {
+    console.warn('[voice-to-text] editor rejected the insertion', error);
+  }
 }
 
 /**

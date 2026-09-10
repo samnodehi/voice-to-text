@@ -559,8 +559,14 @@ export default defineContentScript({
           scheduleTranscriptRender();
           // Commit first, then re-lay the new tail after it, so the field always mirrors
           // exactly what the popup shows — including words that are still being revised.
-          if (message.finalText) fieldWriter?.commit(message.finalText);
-          fieldWriter?.setInterim(message.interimText);
+          // Guarded: a host editor that re-renders mid-write must not throw out of this
+          // listener and take the whole dictation session down with it.
+          try {
+            if (message.finalText) fieldWriter?.commit(message.finalText);
+            fieldWriter?.setInterim(message.interimText);
+          } catch (error) {
+            console.warn('[voice-to-text] could not write into this field', error);
+          }
           break;
         case 'recognition:error': {
           // 'no-speech' fires on every natural pause and 'aborted' on a normal stop — they
