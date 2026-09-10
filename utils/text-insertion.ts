@@ -238,29 +238,75 @@ function createInputWriter(field: HTMLInputElement | HTMLTextAreaElement): Field
   };
 }
 
+/** Longest interim tail we will try to re-select in a rich editor. */
+const MAX_CONTENTEDITABLE_TAIL = 200;
+
 function createContentEditableWriter(field: HTMLElement): FieldWriter {
-  // Rich editors (Gmail, Slack, …) reformat and re-parent nodes while you type, so tracking
-  // a live tail and deleting it again risks eating the user's own text. Here we insert only
-  // committed text. Nothing is lost: the engine flushes its un-finalized tail before any
-  // session ends, so every spoken word still arrives — just at segment boundaries.
+  // Rich editors (ChatGPT/ProseMirror, Gmail, Slack) keep their own document model and
+  // re-render from it, so we cannot just rewrite a text node. What they *do* understand is
+  // a real selection plus execCommand('insertText'), which replaces the selection and emits
+  // the input events they listen for. So the live tail is maintained by selecting the text
+  // we last inserted and overwriting it — but only after verifying the selection really
+  // contains our tail and nothing of the user's.
   let commits = 0;
   let interimCalls = 0;
+  let interimWrites = 0;
+  let tail = '';
+  let liveInterim = typeof (window.getSelection() as Selection & { modify?: unknown })?.modify === 'function';
+
+  // contenteditable renders a space next to the caret as U+00A0, so what comes back out of
+  // the selection is not byte-identical to what we put in. Comparing raw would fail on the
+  // first tail containing a space and disable live interim for good.
+  const sameText = (a: string, b: string) => a.replace(/ /g, ' ') === b.replace(/ /g, ' ');
+
+  /** Select the tail we last wrote, backwards from the caret. False if it isn't exactly there. */
+  const selectOwnTail = (): boolean => {
+    const selection = window.getSelection() as (Selection & { modify(...a: string[]): void }) | null;
+    if (!selection || selection.rangeCount === 0) return false;
+    selection.collapseToEnd();
+    for (let i = 0; i < tail.length; i++) selection.modify('extend', 'backward', 'character');
+    if (!sameText(selection.toString(), tail)) {
+      // Not ours — the editor reformatted or the user typed. Never delete what we can't verify.
+      selection.collapseToEnd();
+      return false;
+    }
+    return true;
+  };
+
+  const write = (text: string, commit: boolean) => {
+    if (tail && !selectOwnTail()) {
+      liveInterim = false;
+      tail = '';
+      if (!commit) return;
+    }
+    insertIntoContentEditable(field, text);
+    tail = commit ? '' : text;
+  };
+
   return {
-    setInterim: () => {
+    setInterim: (text) => {
       interimCalls++;
+      if (!liveInterim || text === tail) return;
+      // Re-selecting a very long tail means one modify() call per character; past this point
+      // the churn costs more than the liveness is worth, so let it land at the next commit.
+      if (text.length > MAX_CONTENTEDITABLE_TAIL) return;
+      interimWrites++;
+      write(text, false);
     },
     commit: (text) => {
       commits++;
-      insertIntoContentEditable(field, text);
+      write(text, true);
     },
-    reset: () => {},
+    reset: () => {
+      tail = '';
+    },
     stats: () => ({
       kind: 'contenteditable',
       interimCalls,
-      interimWrites: 0,
+      interimWrites,
       commits,
       reanchors: 0,
-      liveInterim: false,
+      liveInterim,
     }),
   };
 }
