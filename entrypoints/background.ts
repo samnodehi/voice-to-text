@@ -38,9 +38,13 @@ export default defineBackground(() => {
       // content-script tabs need an explicit hand-off, since runtime.sendMessage never
       // reaches them.
       if (message.source.kind === 'tab') {
-        browser.tabs.sendMessage(message.source.tabId, message).catch(() => {
-          // Tab was closed/navigated mid-session, or has no content script (e.g. a
-          // chrome:// page). Nothing actionable; the session cleans up on its own.
+        browser.tabs.sendMessage(message.source.tabId, message).catch((error) => {
+          // Usually the tab closed or navigated mid-session. But this is also the one place
+          // a recognition result can vanish between the engine and the page, so a dropped
+          // result must leave a trace rather than looking like the engine mis-heard.
+          if (message.type !== 'recognition:level') {
+            console.warn('[voice-to-text/background] result not delivered to tab', message.type, error);
+          }
         });
       }
       return undefined;
