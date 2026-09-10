@@ -2,7 +2,7 @@
   "name": "voice-to-text-extension",
   "description": "Free voice dictation in any text field, on any website — 20+ languages, runs in your browser.",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "scripts": {
     "dev": "wxt",

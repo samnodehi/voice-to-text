@@ -5,6 +5,12 @@ const ICON_GAP = 6; // gap between the field edge and the icon (icon sits OUTSID
 const POPUP_HEIGHT_ESTIMATE = 240;
 const AUTO_HIDE_DELAY_MS = 1500;
 const METER_BARS = 22;
+/**
+ * The popup is a live preview, not a document viewer. Re-writing an ever-growing string into
+ * the DOM on every interim event (several per second) is what made long dictation crawl, so
+ * only the tail is rendered — the full text still lives in `finalizedTranscript` for copying.
+ */
+const MAX_POPUP_CHARS = 2000;
 
 /**
  * Clean line icons (Feather/Lucide-style) as inline SVG — far more modern than emoji, and
@@ -61,7 +67,15 @@ export default defineContentScript({
     let isMounted = false;
     let mySource: RecognitionSource | null = null;
     let finalizedTranscript = '';
+    let interimTranscript = '';
+    /** Writes into the focused field, keeping the still-revising tail replaceable. */
+    let fieldWriter: FieldWriter | null = null;
     let autoHideTimer: ReturnType<typeof setTimeout> | undefined;
+
+    /** Whether dictation should be typed into the page field at all. */
+    const writesToField = () => settings.insertMode !== 'popup-only';
+    /** In 'field-only' the popup stays out of the way — but errors still force it open. */
+    const showsPopup = () => settings.insertMode !== 'field-only';
 
     let rootEl!: HTMLDivElement;
     let iconEl!: HTMLButtonElement;
@@ -282,6 +296,9 @@ export default defineContentScript({
 
     function scheduleAutoHidePopup() {
       window.clearTimeout(autoHideTimer);
+      // Never auto-hide an error: 1.5s is not long enough to read one, and the user needs it
+      // to act (grant the mic, reload the page). They dismiss it with the close button.
+      if (statusEl?.dataset.kind === 'error') return;
       autoHideTimer = setTimeout(hidePopup, AUTO_HIDE_DELAY_MS);
     }
 
@@ -291,14 +308,29 @@ export default defineContentScript({
       iconEl.setAttribute('aria-label', tr.t(isListening ? 'tip.stop' : 'tip.start'));
     }
 
-    function renderTranscript(transcript: string, isFinal: boolean) {
-      if (isFinal) {
-        finalizedTranscript += transcript + ' ';
-        transcriptEl.textContent = finalizedTranscript;
-      } else {
-        transcriptEl.textContent = finalizedTranscript + transcript;
-      }
-      transcriptEl.scrollTop = transcriptEl.scrollHeight;
+    /**
+     * Coalesced to one DOM write per frame. The previous version wrote the whole accumulated
+     * transcript and then read scrollHeight on *every* interim event, forcing a synchronous
+     * reflow several times a second over a string that only ever grew — the cause of the
+     * progressive slowdown and stalls during long dictation.
+     */
+    let transcriptRenderQueued = false;
+    function scheduleTranscriptRender() {
+      if (!transcriptEl || transcriptRenderQueued) return;
+      transcriptRenderQueued = true;
+      requestAnimationFrame(() => {
+        transcriptRenderQueued = false;
+        if (!transcriptEl) return;
+        const full = finalizedTranscript + interimTranscript;
+        transcriptEl.textContent = full.length > MAX_POPUP_CHARS ? full.slice(-MAX_POPUP_CHARS) : full;
+        transcriptEl.scrollTop = transcriptEl.scrollHeight;
+      });
+    }
+
+    function resetTranscript() {
+      finalizedTranscript = '';
+      interimTranscript = '';
+      if (transcriptEl) transcriptEl.textContent = '';
     }
 
     async function onCopyClick() {
@@ -331,7 +363,9 @@ export default defineContentScript({
 
     // Simple bar-history waveform: newest level on the leading edge, older levels scroll off.
     function renderMeter(level: number) {
-      if (!meterEl) return;
+      // Skip entirely while the popup is hidden (notably 'field-only'): 22 inline style
+      // writes ~11×/second is real layout work to spend on something nobody can see.
+      if (!meterEl || popupEl?.hidden !== false) return;
       meterHistory.push(level);
       meterHistory.shift();
       const bars = meterEl.children;
@@ -373,10 +407,12 @@ export default defineContentScript({
       isListening = true;
       updateIconVisualState();
       resetMeter();
-      finalizedTranscript = '';
-      transcriptEl.textContent = '';
+      resetTranscript();
+      // Bind a writer to this field for the session, so the interim tail can be rewritten
+      // in place as the engine revises it rather than only landing when a segment finalizes.
+      fieldWriter = writesToField() ? createFieldWriter(activeField) : null;
       setStatus(tr.t('status.starting'), 'idle');
-      showPopup();
+      if (showsPopup()) showPopup();
 
       // When the extension is reloaded or updated, content scripts already injected into
       // open tabs are orphaned: chrome.runtime.id goes undefined and every runtime call
@@ -518,21 +554,30 @@ export default defineContentScript({
           renderMeter(message.level);
           break;
         case 'recognition:result':
-          renderTranscript(message.transcript, message.isFinal);
-          // In popup-only mode the popup is the sole destination; the user copies from
-          // there. Otherwise final segments are also typed straight into the field.
-          if (message.isFinal && activeField && settings.insertMode === 'direct-and-popup') {
-            insertTextAtCursor(activeField, message.transcript + ' ');
-          }
+          if (message.finalText) finalizedTranscript += message.finalText;
+          interimTranscript = message.interimText;
+          scheduleTranscriptRender();
+          // Commit first, then re-lay the new tail after it, so the field always mirrors
+          // exactly what the popup shows — including words that are still being revised.
+          if (message.finalText) fieldWriter?.commit(message.finalText);
+          fieldWriter?.setInterim(message.interimText);
           break;
         case 'recognition:error':
           setStatus(tr.t(ERROR_KEYS[message.error] ?? 'status.genericError'), 'error');
+          // A failure the user can't see is a failure they can't fix — force the popup open
+          // even in 'field-only', where it is otherwise deliberately kept out of the way.
+          showPopup();
           break;
         case 'recognition:ended':
           isListening = false;
           updateIconVisualState();
           mySource = null;
           resetMeter();
+          // The engine flushes its un-finalized tail as a final before ending, so whatever
+          // is still marked interim here has already been superseded; drop the tracking.
+          interimTranscript = '';
+          fieldWriter?.reset();
+          fieldWriter = null;
           if (message.reason === 'superseded') {
             setStatus(tr.t('status.superseded'), 'idle');
           }

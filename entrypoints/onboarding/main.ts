@@ -82,13 +82,9 @@ grantBtn.addEventListener('click', async () => {
   }
 });
 
-function renderTranscript(text: string, isFinal: boolean) {
-  if (isFinal) {
-    finalized += text + ' ';
-    transcriptEl.textContent = finalized;
-  } else {
-    transcriptEl.textContent = finalized + text;
-  }
+function renderTranscript(finalText: string, interimText: string) {
+  finalized += finalText;
+  transcriptEl.textContent = finalized + interimText;
 }
 
 const ERROR_KEYS: Record<string, MessageKey> = {
@@ -130,7 +126,7 @@ browser.runtime.onMessage.addListener((message: unknown) => {
       setStatus(recStatus, t.t('status.listening'), 'success');
       break;
     case 'recognition:result':
-      renderTranscript(message.transcript, message.isFinal);
+      renderTranscript(message.finalText, message.interimText);
       break;
     case 'recognition:error':
       setStatus(recStatus, t.t(ERROR_KEYS[message.error] ?? 'status.genericError'), 'error');

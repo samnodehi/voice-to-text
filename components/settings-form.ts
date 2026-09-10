@@ -86,6 +86,7 @@ export async function mountSettingsForm(
   // Insert mode
   const insertSel = select('set-insert', [
     { value: 'direct-and-popup', label: t.t('set.insertDirect'), i18nLabel: 'set.insertDirect' },
+    { value: 'field-only', label: t.t('set.insertFieldOnly'), i18nLabel: 'set.insertFieldOnly' },
     { value: 'popup-only', label: t.t('set.insertPopup'), i18nLabel: 'set.insertPopup' },
   ]);
   insertSel.value = settings.insertMode;

@@ -235,6 +235,8 @@ async function startRecognitionInner(lang: string, source: RecognitionSource, co
     lang,
     punctuationCommands: config.punctuationCommands,
   };
+  // Per-session, so a new dictation always starts from a clean result index.
+  const accumulator = createRecognitionAccumulator((raw) => processFinalTranscript(raw, processing));
 
   let stream: MediaStream;
   try {
@@ -285,20 +287,10 @@ async function startRecognitionInner(lang: string, source: RecognitionSource, co
 
   instance.onresult = (event: SpeechRecognitionEvent) => {
     lastErrorCode = null;
-    for (let i = event.resultIndex; i < event.results.length; i++) {
-      const result = event.results[i];
-      const raw = result[0].transcript;
-      // Only clean up FINAL segments (punctuation commands, ZWNJ, script-specific digits).
-      // Interim text is left raw so the live preview doesn't jump around as words revise.
-      const transcript = result.isFinal ? processFinalTranscript(raw, processing) : raw;
-      emit({
-        target: 'client',
-        type: 'recognition:result',
-        source,
-        transcript,
-        isFinal: result.isFinal,
-      });
-    }
+    const { finalText, interimText } = accumulator.consume(event.results);
+    // Always emit: the event only fires when something changed, and an interim that shrank
+    // back to '' still has to reach the client so it can clear the stale tail.
+    emit({ target: 'client', type: 'recognition:result', source, finalText, interimText });
   };
 
   instance.onerror = (event: SpeechRecognitionErrorEvent) => {
@@ -307,13 +299,29 @@ async function startRecognitionInner(lang: string, source: RecognitionSource, co
     emit({ target: 'client', type: 'recognition:error', source, error: lastErrorCode, message: event.message || undefined });
   };
 
+  /**
+   * Commit whatever the engine was still revising. A session that ends — whether the user
+   * stopped it or Chrome timed it out on silence — throws away its un-finalized tail, and
+   * the restarted session begins from an empty result list, so anything not committed here
+   * is gone for good. If Chrome did finalize the tail first, onresult already cleared
+   * pendingInterim and this is a no-op, so it can never double-commit.
+   */
+  const flushPendingInterim = () => {
+    const finalText = accumulator.takePendingFinal();
+    if (!finalText) return;
+    emit({ target: 'client', type: 'recognition:result', source, finalText, interimText: '' });
+  };
+
   instance.onend = () => {
     const isFatal = lastErrorCode !== null && FATAL_ERRORS.has(lastErrorCode);
     const trackStillLive = track.readyState === 'live';
+    flushPendingInterim();
 
     if (shouldBeListening && !isFatal && trackStillLive && !tooManyRestarts()) {
       // Chrome auto-stops `continuous` recognition after periods of silence; restart
       // transparently, reusing the same track, so dictation feels uninterrupted.
+      // The new session reports results from index 0 again, so reset our own counter.
+      accumulator.resetSessionIndex();
       try {
         instance.start(track);
       } catch {

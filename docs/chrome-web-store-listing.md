@@ -34,7 +34,8 @@ No account. No API key. No setup beyond a one-time microphone permission.
 FEATURES
 • Works in any text field on any site — input boxes, comment fields, rich editors.
 • Live transcription with an on-screen audio meter so you know it's listening.
-• Types into the field and shows a popup — or switch to popup-only and copy manually.
+• Types into the field as you speak. Keep the live popup, hide it and use the field only,
+  or switch to popup-only and copy manually.
 • 20+ languages: English, Persian, Arabic, Turkish, German, French, Spanish, Italian,
   Russian, Portuguese, Hindi, Japanese, Korean, Chinese, Dutch, Polish, Indonesian,
   Swedish, Ukrainian and more.

@@ -8,7 +8,13 @@
  */
 
 export type ThemeId = 'auto' | 'light' | 'dark';
-export type InsertModeId = 'direct-and-popup' | 'popup-only';
+/**
+ * Where dictated text goes.
+ * - 'direct-and-popup': typed into the field, with the live popup alongside.
+ * - 'field-only':       typed into the field, no popup (the popup still appears for errors).
+ * - 'popup-only':       nothing is typed; the user copies from the popup.
+ */
+export type InsertModeId = 'direct-and-popup' | 'field-only' | 'popup-only';
 
 /**
  * Recognition languages offered in the UI. English first (default). These are common

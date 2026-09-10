@@ -75,7 +75,7 @@ auto-saves:
 | **Speech language** | The language you speak. Drives recognition, digits, and punctuation. |
 | **Extension language** | The language of the UI itself (independent of speech). |
 | **Theme** | Auto (match system), light, or dark. |
-| **Text insertion** | Type into the field + popup, or popup-only. |
+| **Text insertion** | Type into the field + live popup, type into the field only (no popup), or popup-only. |
 | **Spoken punctuation** | Turn "period"/"نقطه"/… into real punctuation. |
 | **Per-site** | Disable the mic icon on the current site (toolbar popup). |
 
@@ -111,6 +111,12 @@ browser `getUserMedia` origin-permission model, granted once during onboarding.
 - **Closed shadow DOM** — fields inside a site's *closed* shadow root are invisible to any
   extension and can't get an icon. Open shadow DOM (the common case — YouTube, Google
   Translate, most web components) works fine.
+- **Rich editors get whole phrases, not live words.** In plain fields (`input`, `textarea`)
+  each word appears as you say it. Inside rich `contenteditable` editors (Gmail, Slack, …)
+  text is inserted when the engine finalizes a phrase instead, because continuously
+  rewriting a live tail in an editor that reformats as you type risks destroying your own
+  text. Nothing is lost either way — the engine commits its un-finalized tail before any
+  session ends.
 - **Recognition accuracy** depends on the browser's built-in speech engine, your
   microphone, and background noise — it varies by language and accent.
 

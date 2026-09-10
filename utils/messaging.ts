@@ -71,12 +71,24 @@ export interface RecognitionStartedMessage {
   source: RecognitionSource;
 }
 
+/**
+ * One message per recognition event, carrying both halves of the engine's state.
+ *
+ * This deliberately replaces the earlier "one message per changed result, with an isFinal
+ * flag" shape. That shape made the client accumulate finals itself, which meant a
+ * `resultIndex` that walked backwards (the Web Speech API is allowed to revise) silently
+ * duplicated text, and it sent N messages per event during long dictation. Here the
+ * offscreen engine owns the "what has been committed" bookkeeping and sends a monotonic
+ * delta, so duplication is structurally impossible.
+ */
 export interface RecognitionResultMessage {
   target: 'client';
   type: 'recognition:result';
   source: RecognitionSource;
-  transcript: string;
-  isFinal: boolean;
+  /** Newly finalized, already-normalized text (trailing space included). '' if none this event. */
+  finalText: string;
+  /** The still-revising tail, raw. '' once it has been finalized. */
+  interimText: string;
 }
 
 /** Live mic level (0–1) for the popup meter, emitted a few times per second while active. */
