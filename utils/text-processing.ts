@@ -383,7 +383,15 @@ function localizeOutput(text: string, lang: string): string {
   const base = lang.toLowerCase().split('-')[0];
   if (base === 'fa') {
     // Arabic-form letters → Persian, common ZWNJ fixes, and Persian digit glyphs.
-    return halfSpace(digitsEnToFa(toPersianChars(text)));
+    //
+    // halfSpace() collapses every run of whitespace — newlines included — so running it
+    // over the whole string silently ate the line breaks that the "خط جدید" / "پاراگراف
+    // جدید" commands had just inserted (Persian only; Arabic and Latin skip halfSpace).
+    // Normalizing line by line keeps those breaks intact.
+    return digitsEnToFa(toPersianChars(text))
+      .split('\n')
+      .map((line) => halfSpace(line))
+      .join('\n');
   }
   if (base === 'ar') {
     return digitsEnToAr(text);

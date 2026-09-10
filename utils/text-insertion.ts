@@ -71,6 +71,12 @@ function createInputWriter(field: HTMLInputElement | HTMLTextAreaElement): Field
     }
   })();
 
+  // A single-line <input> silently strips newlines from its value (verified in Chrome), so
+  // a spoken "new line" would both vanish and desync our tail bookkeeping — what we think we
+  // wrote would no longer match what the field holds. Write a space there instead.
+  const singleLine = field instanceof HTMLInputElement;
+  const sanitize = (text: string) => (singleLine ? text.replace(/[\r\n]+/g, ' ') : text);
+
   let anchor: number | null = null;
   let tail = '';
   let caretAfterWrite = -1;
@@ -125,9 +131,10 @@ function createInputWriter(field: HTMLInputElement | HTMLTextAreaElement): Field
     // Skip no-op rewrites: every write re-fires `input` on the host page, and during
     // dictation that would run the site's own handlers dozens of times per second.
     setInterim: (text) => {
-      if (text !== tail || !owned()) write(text, false);
+      const next = sanitize(text);
+      if (next !== tail || !owned()) write(next, false);
     },
-    commit: (text) => write(text, true),
+    commit: (text) => write(sanitize(text), true),
     reset: () => {
       anchor = null;
       tail = '';
