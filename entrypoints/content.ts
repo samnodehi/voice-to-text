@@ -598,10 +598,17 @@ export default defineContentScript({
           // The engine flushes its un-finalized tail as a final before ending, so whatever
           // is still marked interim here has already been superseded; drop the tracking.
           interimTranscript = '';
-          // One line per session, in the page's own console: the offscreen summary cannot see
-          // which field kind this was or whether live interim actually reached the page.
+          // This lands in the *page's* console, so it only speaks up when something actually
+          // went sideways — a tail we kept losing, or live interim switching itself off in a
+          // field that should have supported it. A normal session stays silent.
           if (fieldWriter) {
-            console.info('[voice-to-text] field writer', { host: location.hostname, ...fieldWriter.stats() });
+            const writerStats = fieldWriter.stats();
+            const unexpected =
+              writerStats.reanchors > 0 ||
+              (writerStats.kind !== 'contenteditable' && !writerStats.liveInterim);
+            if (unexpected) {
+              console.warn('[voice-to-text] field writer', { host: location.hostname, ...writerStats });
+            }
           }
           fieldWriter?.reset();
           fieldWriter = null;
