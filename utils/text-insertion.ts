@@ -93,6 +93,25 @@ export interface FieldWriter {
   commit(text: string): void;
   /** Forget the tracked tail without touching the field (session ended). */
   reset(): void;
+  /** What actually happened, for the end-of-session diagnostic line. */
+  stats(): FieldWriterStats;
+}
+
+/**
+ * Why this exists: the same recognition stream behaves very differently depending on the
+ * field it lands in, and from the offscreen side every session looks identical. These
+ * counters say whether live interim actually reached the page or quietly fell back.
+ */
+export interface FieldWriterStats {
+  kind: 'input' | 'textarea' | 'contenteditable';
+  /** setInterim calls received vs. writes actually performed (no-op repeats are skipped). */
+  interimCalls: number;
+  interimWrites: number;
+  commits: number;
+  /** Times the tail stopped being ours — the user typed/moved, or the page rewrote it. */
+  reanchors: number;
+  /** False once a rewriting host forced the commit-only fallback. */
+  liveInterim: boolean;
 }
 
 function createInputWriter(field: HTMLInputElement | HTMLTextAreaElement): FieldWriter {
@@ -115,6 +134,10 @@ function createInputWriter(field: HTMLInputElement | HTMLTextAreaElement): Field
   let anchor: number | null = null;
   let tail = '';
   let caretAfterWrite = -1;
+  let interimCalls = 0;
+  let interimWrites = 0;
+  let commits = 0;
+  let reanchors = 0;
   /**
    * Some editors rewrite the field's content on every `input` — Google Translate inserts its
    * own transliteration, ProseMirror-style editors normalise. Our tail is then no longer
@@ -145,9 +168,12 @@ function createInputWriter(field: HTMLInputElement | HTMLTextAreaElement): Field
     if (!owned()) {
       // The user moved or typed — start a fresh tail where they are, and leave whatever we
       // wrote before alone; it is their text now.
+      if (anchor !== null) reanchors++;
       anchor = caretAware ? (field.selectionStart ?? field.value.length) : field.value.length;
       tail = '';
     }
+    if (commit) commits++;
+    else interimWrites++;
     const start = anchor as number;
     const before = field.value;
     const next = before.slice(0, start) + text + before.slice(start + tail.length);
@@ -189,6 +215,7 @@ function createInputWriter(field: HTMLInputElement | HTMLTextAreaElement): Field
     // Skip no-op rewrites: every write re-fires `input` on the host page, and during
     // dictation that would run the site's own handlers dozens of times per second.
     setInterim: (text) => {
+      interimCalls++;
       if (!liveInterim) return;
       const next = sanitize(text);
       if (next !== tail || !owned()) write(next, false);
@@ -200,6 +227,14 @@ function createInputWriter(field: HTMLInputElement | HTMLTextAreaElement): Field
       caretAfterWrite = -1;
       liveInterim = true;
     },
+    stats: () => ({
+      kind: singleLine ? 'input' : 'textarea',
+      interimCalls,
+      interimWrites,
+      commits,
+      reanchors,
+      liveInterim,
+    }),
   };
 }
 
@@ -208,10 +243,25 @@ function createContentEditableWriter(field: HTMLElement): FieldWriter {
   // a live tail and deleting it again risks eating the user's own text. Here we insert only
   // committed text. Nothing is lost: the engine flushes its un-finalized tail before any
   // session ends, so every spoken word still arrives — just at segment boundaries.
+  let commits = 0;
+  let interimCalls = 0;
   return {
-    setInterim: () => {},
-    commit: (text) => insertIntoContentEditable(field, text),
+    setInterim: () => {
+      interimCalls++;
+    },
+    commit: (text) => {
+      commits++;
+      insertIntoContentEditable(field, text);
+    },
     reset: () => {},
+    stats: () => ({
+      kind: 'contenteditable',
+      interimCalls,
+      interimWrites: 0,
+      commits,
+      reanchors: 0,
+      liveInterim: false,
+    }),
   };
 }
 

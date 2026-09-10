@@ -598,6 +598,11 @@ export default defineContentScript({
           // The engine flushes its un-finalized tail as a final before ending, so whatever
           // is still marked interim here has already been superseded; drop the tracking.
           interimTranscript = '';
+          // One line per session, in the page's own console: the offscreen summary cannot see
+          // which field kind this was or whether live interim actually reached the page.
+          if (fieldWriter) {
+            console.info('[voice-to-text] field writer', { host: location.hostname, ...fieldWriter.stats() });
+          }
           fieldWriter?.reset();
           fieldWriter = null;
           if (message.reason === 'superseded') {
