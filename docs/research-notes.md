@@ -397,3 +397,64 @@ https://groups.google.com/a/chromium.org/g/chromium-extensions/c/99aUpv85-8A
 **نکته:** روی `google.com` واقعی (یک صفحه‌ی وب عادی) آیکن کار می‌کند؛ فقط صفحه‌ی **New Tab** (که یک صفحه‌ی
 `chrome://` است) استثناست. این را باید در توضیحات Chrome Web Store و راهنمای کاربر شفاف نوشت.
 منبع: https://developer.chrome.com/docs/extensions/develop/concepts/match-patterns (بخش محدودیت‌های تزریق)
+
+---
+
+## ۹) بازبینی وضعیت Web Speech API — سنجش تجربی روی Chrome 152 (۱۰ سپتامبر ۲۰۲۶)
+
+به‌جای اتکا به مستندات، سطح API مستقیماً در یک مرورگر Chrome 152 اندازه‌گیری شد
+(`SpeechRecognition.available({langs:[…], processLocally:true})` و بررسی وجود propertyها):
+
+| مورد | نتیجهٔ سنجش |
+|---|---|
+| `SpeechRecognition.available()` / `install()` | **موجود** (و در `@types/dom-speech-recognition@0.0.12` هم تایپ شده) |
+| `processLocally` | موجود (همین حالا استفاده می‌کنیم) |
+| **`phrases`** (contextual biasing) | **موجود** + سازندهٔ `SpeechRecognitionPhrase` موجود |
+| **`unspokenPunctuation`** | **موجود** — علائم نگارشی را از روی مکث/آهنگ کلام خودکار اضافه می‌کند |
+| `SpeechRecognitionPhraseList` | موجود **نیست** (آرایهٔ ساده‌ای از `SpeechRecognitionPhrase` است) |
+| on-device برای en-US / fa-IR / ar-SA / de-DE / ja-JP | همه **`unavailable`** در آن پروفایل (SODA نصب نبود) |
+| ابری (cloud) برای en-US و fa-IR | هر دو **`available`** |
+
+### نتیجه‌گیری‌های عملی
+
+- **contextual biasing برای فارسی به درد ما نمی‌خورد.** طبق explainer رسمی:
+  «Some user agents (e.g. Chrome) might only support **on-device** contextual biasing.» و
+  **فارسی در فهرست زبان‌های SODA کروم نیست**؛ پس مسیر on-device (و در نتیجه biasing) برای
+  زبان اصلی این پروژه فعلاً بسته است. کد فعلی از قبل با `available()` این را probe می‌کند و
+  بی‌صدا به موتور ابری برمی‌گردد — یعنی چیزی برای تغییر نیست.
+- **`install()`** هم به همین دلیل برای فارسی بی‌فایده است (بستهٔ زبانی وجود ندارد).
+- **`unspokenPunctuation` تنها قابلیت جدیدِ واقعاً کاندید است**؛ ولی MDN جدول سازگاری‌اش خالی
+  است و مشخص نیست ابری هم کار می‌کند یا فقط on-device. اگر اضافه شود باید **feature-detect**
+  شود و با دستورهای نگارشی گفتاری تداخل نکند (وگرنه «نقطه» دوبار درج می‌شود).
+- `phrases` و `unspokenPunctuation` در `@types/dom-speech-recognition@0.0.12` تایپ نشده‌اند و
+  به یک declaration merging کوچک نیاز دارند.
+
+## ۱۰) بازبینی `@persian-tools/persian-tools` v4.0.4 — چه چیزی استفاده نمی‌کنیم
+
+توابع موجود ولی استفاده‌نشده آزمایش شدند (نه حدس — اجرای واقعی):
+
+- **`wordsToNumber`** — وسوسه‌انگیز است («بیست و سه» → ۲۳) ولی روی جمله **مخرب** است:
+  `wordsToNumber('ساعت سه قرار داریم')` نتیجه می‌دهد `3` و **بقیهٔ جمله را دور می‌ریزد**.
+  برای دیکته فقط با توکن‌سازیِ خودمان (پیداکردن فقط دنبالهٔ کلمات عددی) قابل استفاده است.
+- **`cleanText`** — هم فاصله‌های اضافی را جمع می‌کند، هم ي/ك عربی را فارسی می‌کند، هم اعداد را
+  فارسی می‌کند و **نیم‌فاصله را حفظ می‌کند** (بهتر از `normalizeText` که ZWNJ را حذف می‌کند).
+  ولی مثل `halfSpace` **`\n` را هم می‌خورد**، پس جایگزینِ بی‌دردسر زنجیرهٔ فعلی نیست.
+- `addCommas`, `digitsArToFa`, … : جانبی. بقیهٔ توابع کتابخانه (کد ملی، شبا، پلاک، تلفن) بی‌ربط‌اند.
+
+## ۱۱) باگ پیداشده در همین بازبینی: خوردنِ «خط جدید» در فارسی
+
+`processFinalTranscript` اول `applyPunctuationCommands` را می‌زند (که برای «خط جدید» یک `\n`
+درج می‌کند) و بعد `localizeOutput`. برای فارسی `localizeOutput` تابع `halfSpace()` را روی کل
+رشته اجرا می‌کرد و `halfSpace` **هر رشته‌ای از whitespace از جمله `\n` را به یک فاصله تبدیل
+می‌کند** → دستور «خط جدید» بی‌صدا از بین می‌رفت. سنجش واقعی:
+
+```
+fa-IR "سلام خط جدید دنیا"  ->  "سلام دنیا"        (قبل از رفع — شکسته)
+ar-SA "مرحبا خط جديد عالم" ->  "مرحبا\nعالم"      (سالم؛ عربی به halfSpace نمی‌رسد)
+en-US "hello new line world" -> "hello\nworld"    (سالم)
+```
+
+رفع: `halfSpace` حالا **خط‌به‌خط** اعمال می‌شود. همچنین مشخص شد `<input>` تک‌خطی مقدارِ حاوی
+`\n` را **حذف** می‌کند (`'a\nb'` → `'ab'`، سنجش‌شده در کروم) که هم متن را می‌بُرد و هم
+حسابداری دنبالهٔ `FieldWriter` را از هماهنگی خارج می‌کرد؛ حالا در فیلدهای تک‌خطی `\n` به فاصله
+تبدیل می‌شود و `<textarea>` دست‌نخورده می‌ماند.
