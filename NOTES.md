@@ -24,7 +24,9 @@
 - **✅ منتشر شد** — بازبینی Chrome Web Store تأیید شد و افزونه حدود ۸ ژوئیهٔ ۲۰۲۶ منتشر شد.
 - **اگر بازبین دربارهٔ `<all_urls>` سؤال کرد**: توجیهِ آماده در [docs/chrome-web-store-listing.md](docs/chrome-web-store-listing.md)
   و متن Test instructions هست — با هم جواب را می‌فرستیم.
-- **گزینهٔ v0.1.1 (اختیاری)**: حذف `host_permissions: <all_urls>` با معماری Port — `content.ts` با
+- **آمادهٔ آپلود: ۰.۱.۲** — آپلود در فروشگاه تا پایان بازبینی ۰.۱.۱ قفل است (کروم اجازهٔ پکیج جدید
+  حین بازبینی نمی‌دهد). به‌محض تأیید ۰.۱.۱، ۰.۱.۲ آپلود شود.
+- **گزینهٔ آینده (اختیاری)**: حذف `host_permissions: <all_urls>` با معماری Port — `content.ts` با
   `chrome.runtime.connect()` کانکشن باز کند و `background.ts` نتایج را به‌جای `tabs.sendMessage` روی همان port
   برگرداند؛ هندلر `commands` هم از همان port استفاده کند. سپس bump به `0.1.1`، `npm run zip`، آپلود آپدیت.
   **هشدار واقع‌بینانه**: `content_scripts` روی `<all_urls>` ذاتی محصول است و می‌ماند، پس هشدار نصبِ «all websites»
