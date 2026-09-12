@@ -16,10 +16,8 @@
 
 ## باز — نیاز به پیگیری
 
-- **⬆️ ۰.۱.۲ آمادهٔ آپلود است** (۰.۱.۱ در ۱۲ سپتامبر ۲۰۲۶ منتشر شد، پس قفلِ بازبینی برداشته شده).
-  ⚠️ این آپدیت **مجموعهٔ مجوزها را عوض می‌کند**: `host_permissions` حذف و `activeTab` اضافه شده — یعنی
-  داشبورد یک justification تازه برای `activeTab` می‌خواهد؛ متنش در
-  [docs/chrome-web-store-listing.md](docs/chrome-web-store-listing.md) آماده است.
+- **⏳ ۰.۱.۲ ارسال شد و در بازبینی است** (۱۲ سپتامبر ۲۰۲۶). این نسخه مجموعهٔ مجوزها را عوض می‌کند
+  (`host_permissions` حذف، `activeTab` اضافه) — چون **کاهش** دسترسی است، نباید پرچم تازه‌ای بگیرد.
 - **اگر بازبین دربارهٔ `<all_urls>` سؤال کرد**: توجیهِ آماده در [docs/chrome-web-store-listing.md](docs/chrome-web-store-listing.md)
   و متن Test instructions هست — با هم جواب را می‌فرستیم.
 
