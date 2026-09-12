@@ -335,7 +335,7 @@ function rulesForLang(lang: string): CompiledRule[] {
  * Works token-by-token so spacing stays correct: attach-punctuation glues to the previous
  * word, newlines break the line, and everything else is space-joined.
  */
-export function applyPunctuationCommands(text: string, lang: string): string {
+function applyPunctuationCommands(text: string, lang: string): string {
   const rules = rulesForLang(lang);
   if (rules.length === 0) return text;
 

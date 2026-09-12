@@ -9,13 +9,13 @@
 import { EN, DICTS, RTL_UI, type Dict, type MessageKey } from './i18n-messages';
 
 /** Resolve a UI-language setting ('auto' or a code) to a concrete base language we support. */
-export function resolveUiLang(setting: string): string {
+function resolveUiLang(setting: string): string {
   const raw = setting === 'auto' ? (navigator.language || 'en') : setting;
   const base = raw.toLowerCase().split('-')[0] ?? 'en';
   return DICTS[base] ? base : 'en';
 }
 
-export function isRtlUi(lang: string): boolean {
+function isRtlUi(lang: string): boolean {
   return RTL_UI.has(lang);
 }
 

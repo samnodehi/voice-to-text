@@ -17,13 +17,11 @@
   "devDependencies": {
     "@types/dom-speech-recognition": "^0.0.12",
     "sharp": "^0.35.4",
-    "tsx": "^4.23.0",
     "typescript": "^5.9.3",
     "vite": "^8.3.0",
     "wxt": "^0.21.4"
   },
   "dependencies": {
-    "@fontsource/vazirmatn": "^5.2.8",
     "@persian-tools/persian-tools": "^4.0.4"
   }
 }

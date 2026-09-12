@@ -19,7 +19,7 @@ Voice to Text
 Free voice dictation in any text field, on any website. 20+ languages, runs in your browser, no account or API key.
 ```
 
-**Category:** Productivity
+**Category:** Accessibility  *(what the live listing uses)*
 **Language:** English
 
 **Detailed description**
